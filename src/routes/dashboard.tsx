@@ -203,7 +203,7 @@ function Dashboard() {
                   </Link>
                 </Button>
                 <Button variant="outline" className="justify-start" asChild>
-                  <Link to="/tasks" search={{}}>
+                  <Link to="/tasks">
                     <ListChecks className="mr-2 h-4 w-4" /> Review all tasks
                   </Link>
                 </Button>
