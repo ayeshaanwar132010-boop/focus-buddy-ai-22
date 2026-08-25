@@ -265,7 +265,43 @@ function TasksPage() {
                 </div>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+                <ul className="divide-y divide-border md:hidden">
+                  {visible.map((t) => (
+                    <li key={t.id} className="space-y-3 p-4">
+                      <div>
+                        <p className="break-words text-sm font-medium">{t.title}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {subjectName(t.subjectId)} · due {formatDate(t.dueDate)}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={t.status} />
+                        <PriorityBadge priority={t.priority} />
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={t.status === "completed"}
+                          onClick={() => {
+                            setTaskStatus(t.id, "completed");
+                            toast.success("Task completed");
+                          }}
+                        >
+                          <Check className="mr-1.5 h-3.5 w-3.5 text-success" /> Complete
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openEdit(t)}>
+                          <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(t)}>
+                          <Trash2 className="mr-1.5 h-3.5 w-3.5 text-destructive" /> Delete
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <div className="hidden overflow-x-auto md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -329,7 +365,8 @@ function TasksPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
