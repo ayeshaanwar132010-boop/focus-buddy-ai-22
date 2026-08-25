@@ -45,17 +45,17 @@ function Landing() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
               <GraduationCap className="h-5 w-5" />
             </span>
-            <span className="font-display text-base font-semibold sm:text-lg">
+            <span className="truncate font-display text-base font-semibold sm:text-lg">
               AI Study <span className="text-primary">Focus</span>
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild>
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
               <Link to="/signin">Sign In</Link>
             </Button>
             <Button size="sm" asChild>
@@ -77,11 +77,11 @@ function Landing() {
             AI Study Focus gives students one calm workspace to plan every course, break studying
             into clear tasks with due dates and priorities, and see how much is actually done.
           </p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Button size="lg" asChild>
+          <div className="mt-8 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center">
+            <Button size="lg" className="w-full sm:w-auto" asChild>
               <Link to="/signup">Get Started</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
+            <Button size="lg" variant="outline" className="w-full sm:w-auto" asChild>
               <Link to="/signin">Sign In</Link>
             </Button>
           </div>
