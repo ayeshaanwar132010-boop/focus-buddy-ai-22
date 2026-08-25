@@ -189,7 +189,7 @@ function TasksPage() {
     >
       <div className="space-y-5">
         <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as typeof statusTab)}>
-          <TabsList>
+          <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="todo">To do</TabsTrigger>
             <TabsTrigger value="in-progress">In progress</TabsTrigger>

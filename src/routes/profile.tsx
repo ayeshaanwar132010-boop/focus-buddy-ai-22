@@ -71,16 +71,16 @@ function Profile() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <Avatar className="h-12 w-12 shrink-0">
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <CardTitle className="text-base">{profile.fullName}</CardTitle>
-                  <CardDescription>{profile.program}</CardDescription>
+                <div className="min-w-0">
+                  <CardTitle className="truncate text-base">{profile.fullName}</CardTitle>
+                  <CardDescription className="truncate">{profile.program}</CardDescription>
                 </div>
               </div>
               {!editing ? (
@@ -130,7 +130,7 @@ function Profile() {
                     <p className="text-xs font-medium text-destructive">{errors.email}</p>
                   ) : null}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <Button type="submit">Save</Button>
                   <Button type="button" variant="outline" onClick={() => setEditing(false)}>
                     Cancel

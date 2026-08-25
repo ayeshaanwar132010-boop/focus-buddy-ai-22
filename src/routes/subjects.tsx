@@ -117,14 +117,14 @@ function Subjects() {
             <Card key={subject.id} className="flex flex-col">
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
-                  <CardTitle className="text-base">{subject.name}</CardTitle>
-                  <Badge variant="secondary">{taskCountBySubject(subject.id)} tasks</Badge>
+                  <CardTitle className="min-w-0 break-words text-base">{subject.name}</CardTitle>
+                  <Badge variant="secondary" className="shrink-0 whitespace-nowrap">{taskCountBySubject(subject.id)} tasks</Badge>
                 </div>
                 <CardDescription>
                   {subject.description || "No description added yet."}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="mt-auto flex gap-2">
+              <CardContent className="mt-auto flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => openEdit(subject)}>
                   <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
                 </Button>
