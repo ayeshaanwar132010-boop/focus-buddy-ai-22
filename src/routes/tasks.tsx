@@ -249,7 +249,7 @@ function TasksPage() {
         <Card>
           <CardContent className="p-0">
             {visible.length === 0 ? (
-              <div className="p-12 text-center">
+              <div className="p-8 text-center sm:p-12">
                 <ListChecks className="mx-auto h-8 w-8 text-muted-foreground" />
                 <p className="mt-3 font-medium">No tasks match your filters</p>
                 <p className="mt-1 text-sm text-muted-foreground">

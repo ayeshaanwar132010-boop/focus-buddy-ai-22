@@ -101,7 +101,7 @@ function Subjects() {
       }
     >
       {subjects.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-12 text-center">
+        <div className="rounded-xl border border-dashed border-border p-8 text-center sm:p-12">
           <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-3 font-medium">No subjects yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
