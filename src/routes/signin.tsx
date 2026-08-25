@@ -28,12 +28,12 @@ function SignIn() {
   const navigate = useNavigate();
   const { signIn } = useStudy();
   const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string | undefined; password?: string | undefined }>({});
   const [loading, setLoading] = useState(false);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const next: { email?: string; password?: string } = {};
+    const next: { email?: string | undefined; password?: string | undefined } = {};
     if (!form.email.trim()) next.email = "Email is required.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim()))
       next.email = "Enter a valid email address.";

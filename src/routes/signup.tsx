@@ -25,7 +25,12 @@ export const Route = createFileRoute("/signup")({
   component: SignUp,
 });
 
-type Errors = Partial<Record<"fullName" | "email" | "password" | "confirmPassword", string>>;
+type Errors = {
+  fullName?: string | undefined;
+  email?: string | undefined;
+  password?: string | undefined;
+  confirmPassword?: string | undefined;
+};
 
 function SignUp() {
   const navigate = useNavigate();
@@ -122,7 +127,7 @@ export function Field({
   children,
 }: {
   label: string;
-  error?: string;
+  error?: string | undefined;
   children: React.ReactNode;
 }) {
   return (
