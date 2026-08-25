@@ -22,7 +22,7 @@ export const Route = createFileRoute("/signup")({
       { property: "og:description", content: "Sign up to organize subjects and study tasks." },
     ],
   }),
-  component: SignUp;
+  component: SignUp,
 });
 
 type Errors = Partial<Record<"fullName" | "email" | "password" | "confirmPassword", string>>;
