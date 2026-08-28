@@ -71,8 +71,8 @@ function Profile() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:justify-between">
-              <div className="flex min-w-0 items-center gap-3">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 max-w-full items-center gap-3">
                 <Avatar className="h-12 w-12 shrink-0">
                   <AvatarFallback className="bg-primary text-primary-foreground">
                     {initials}
@@ -80,11 +80,11 @@ function Profile() {
                 </Avatar>
                 <div className="min-w-0">
                   <CardTitle className="truncate text-base">{profile.fullName}</CardTitle>
-                  <CardDescription className="truncate">{profile.program}</CardDescription>
+                  <CardDescription className="break-words">{profile.program}</CardDescription>
                 </div>
               </div>
               {!editing ? (
-                <Button variant="outline" size="sm" onClick={startEdit}>
+                <Button variant="outline" size="sm" className="w-full shrink-0 sm:w-auto" onClick={startEdit}>
                   <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit Profile
                 </Button>
               ) : null}
