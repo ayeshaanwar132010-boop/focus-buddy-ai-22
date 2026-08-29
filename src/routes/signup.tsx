@@ -35,8 +35,9 @@ type Errors = {
 };
 
 function SignUp() {
-  const navigate = useNavigate();
-  const { signIn, updateProfile } = useStudy();
+  const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "" });
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
