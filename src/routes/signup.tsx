@@ -62,19 +62,28 @@ function SignUp() {
     return next;
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next = validate();
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
     setLoading(true);
-    setTimeout(() => {
-      updateProfile({ fullName: form.fullName.trim(), email: form.email.trim() });
-      signIn(form.email.trim());
-      setLoading(false);
-      toast.success("Account created", { description: "Temporary frontend account — no backend yet." });
-      navigate({ to: "/dashboard" });
-    }, 700);
+    const { error } = await supabase.auth.signUp({
+      email: form.email.trim(),
+      password: form.password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { full_name: form.fullName.trim() },
+      },
+    });
+    setLoading(false);
+    if (error) {
+      setFormError(error.message);
+      return;
+    }
+    setSent(true);
+    toast.success("Account created", { description: "Check your email to confirm your address." });
   };
 
   return (
@@ -90,12 +99,20 @@ function SignUp() {
         </p>
       }
     >
+      {sent ? (
+        <Alert className="border-success/40 bg-success/10">
+          <AlertDescription className="text-success">
+            Almost there — we sent a confirmation link to {form.email.trim()}. Confirm it, then sign in.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {Object.keys(errors).length > 0 ? (
+        {formError ?? Object.keys(errors).length > 0 ? (
           <Alert variant="destructive">
-            <AlertDescription>Please fix the highlighted fields below.</AlertDescription>
+            <AlertDescription>{formError ?? "Please fix the highlighted fields below."}</AlertDescription>
           </Alert>
         ) : null}
+
 
         <Field label="Full Name" error={errors.fullName}>
           <Input value={form.fullName} onChange={set("fullName")} placeholder="Ayesha Anwar" />
