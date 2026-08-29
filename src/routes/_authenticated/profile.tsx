@@ -48,7 +48,7 @@ function Profile() {
     setEditing(true);
   };
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: typeof errors = {};
     if (!form.fullName.trim()) next.fullName = "Full name is required.";
@@ -58,11 +58,19 @@ function Profile() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    updateProfile({ fullName: form.fullName.trim(), email: form.email.trim() });
+    try {
+      await updateProfile({ fullName: form.fullName.trim(), email: form.email.trim() });
+    } catch (error) {
+      toast.error("Could not save profile", {
+        description: error instanceof Error ? error.message : "Please try again.",
+      });
+      return;
+    }
     setEditing(false);
     setSaved(true);
-    toast.success("Profile updated", { description: "Saved in temporary frontend state." });
+    toast.success("Profile updated");
   };
+
 
   const completed = tasks.filter((t) => t.status === "completed").length;
 
