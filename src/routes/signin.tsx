@@ -73,11 +73,12 @@ function SignIn() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {Object.keys(errors).length > 0 ? (
+        {formError ?? Object.keys(errors).length > 0 ? (
           <Alert variant="destructive">
-            <AlertDescription>Check your details and try again.</AlertDescription>
+            <AlertDescription>{formError ?? "Check your details and try again."}</AlertDescription>
           </Alert>
         ) : null}
+
         <Field label="Email" error={errors.email}>
           <Input
             type="email"
