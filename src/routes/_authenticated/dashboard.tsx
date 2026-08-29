@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDate } from "@/lib/study-data";
 import { useStudy } from "@/lib/study-store";
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Dashboard — AI Study Focus" },

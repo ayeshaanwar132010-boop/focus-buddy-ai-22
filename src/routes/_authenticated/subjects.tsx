@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Subject } from "@/lib/study-data";
 import { useStudy } from "@/lib/study-store";
 
-export const Route = createFileRoute("/subjects")({
+export const Route = createFileRoute("/_authenticated/subjects")({
   head: () => ({
     meta: [
       { title: "Subjects — AI Study Focus" },

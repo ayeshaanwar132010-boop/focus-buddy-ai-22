@@ -51,7 +51,7 @@ import {
 } from "@/lib/study-data";
 import { useStudy } from "@/lib/study-store";
 
-export const Route = createFileRoute("/tasks")({
+export const Route = createFileRoute("/_authenticated/tasks")({
   head: () => ({
     meta: [
       { title: "Study Tasks — AI Study Focus" },
