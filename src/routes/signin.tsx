@@ -105,7 +105,14 @@ function SignIn() {
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           {loading ? "Signing in…" : "Sign In"}
         </Button>
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <GoogleButton label="Sign in with Google" />
       </form>
+
     </AuthLayout>
   );
 }
