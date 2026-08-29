@@ -3,11 +3,12 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { GoogleButton } from "@/components/GoogleButton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthLayout, Field } from "@/routes/signup";
-import { useStudy } from "@/lib/study-store";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/signin")({
   head: () => ({
@@ -26,12 +27,12 @@ export const Route = createFileRoute("/signin")({
 
 function SignIn() {
   const navigate = useNavigate();
-  const { signIn } = useStudy();
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<{ email?: string | undefined; password?: string | undefined }>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: { email?: string | undefined; password?: string | undefined } = {};
     if (!form.email.trim()) next.email = "Email is required.";
@@ -40,16 +41,23 @@ function SignIn() {
     if (!form.password) next.password = "Password is required.";
     else if (form.password.length < 6) next.password = "Password must be at least 6 characters.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setLoading(true);
-    setTimeout(() => {
-      signIn(form.email.trim());
-      setLoading(false);
-      toast.success("Signed in", { description: "Temporary frontend session — no backend yet." });
-      navigate({ to: "/dashboard" });
-    }, 600);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.email.trim(),
+      password: form.password,
+    });
+    setLoading(false);
+    if (error) {
+      setFormError(error.message);
+      return;
+    }
+    toast.success("Signed in");
+    navigate({ to: "/dashboard" });
   };
+
 
   return (
     <AuthLayout
@@ -65,11 +73,12 @@ function SignIn() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {Object.keys(errors).length > 0 ? (
+        {formError ?? Object.keys(errors).length > 0 ? (
           <Alert variant="destructive">
-            <AlertDescription>Check your details and try again.</AlertDescription>
+            <AlertDescription>{formError ?? "Check your details and try again."}</AlertDescription>
           </Alert>
         ) : null}
+
         <Field label="Email" error={errors.email}>
           <Input
             type="email"
@@ -96,7 +105,14 @@ function SignIn() {
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           {loading ? "Signing in…" : "Sign In"}
         </Button>
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <GoogleButton label="Sign in with Google" />
       </form>
+
     </AuthLayout>
   );
 }

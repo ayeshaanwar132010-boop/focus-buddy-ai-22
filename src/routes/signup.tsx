@@ -1,14 +1,16 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { GoogleButton } from "@/components/GoogleButton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useStudy } from "@/lib/study-store";
+import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
@@ -33,8 +35,9 @@ type Errors = {
 };
 
 function SignUp() {
-  const navigate = useNavigate();
-  const { signIn, updateProfile } = useStudy();
+  const [sent, setSent] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
   const [form, setForm] = useState({ fullName: "", email: "", password: "", confirmPassword: "" });
   const [errors, setErrors] = useState<Errors>({});
   const [loading, setLoading] = useState(false);
@@ -59,19 +62,28 @@ function SignUp() {
     return next;
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next = validate();
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
     setLoading(true);
-    setTimeout(() => {
-      updateProfile({ fullName: form.fullName.trim(), email: form.email.trim() });
-      signIn(form.email.trim());
-      setLoading(false);
-      toast.success("Account created", { description: "Temporary frontend account — no backend yet." });
-      navigate({ to: "/dashboard" });
-    }, 700);
+    const { error } = await supabase.auth.signUp({
+      email: form.email.trim(),
+      password: form.password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { full_name: form.fullName.trim() },
+      },
+    });
+    setLoading(false);
+    if (error) {
+      setFormError(error.message);
+      return;
+    }
+    setSent(true);
+    toast.success("Account created", { description: "Check your email to confirm your address." });
   };
 
   return (
@@ -87,12 +99,20 @@ function SignUp() {
         </p>
       }
     >
+      {sent ? (
+        <Alert className="border-success/40 bg-success/10">
+          <AlertDescription className="text-success">
+            Almost there — we sent a confirmation link to {form.email.trim()}. Confirm it, then sign in.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {Object.keys(errors).length > 0 ? (
+        {formError ?? Object.keys(errors).length > 0 ? (
           <Alert variant="destructive">
-            <AlertDescription>Please fix the highlighted fields below.</AlertDescription>
+            <AlertDescription>{formError ?? "Please fix the highlighted fields below."}</AlertDescription>
           </Alert>
         ) : null}
+
 
         <Field label="Full Name" error={errors.fullName}>
           <Input value={form.fullName} onChange={set("fullName")} placeholder="Ayesha Anwar" />
@@ -116,7 +136,14 @@ function SignUp() {
           {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           {loading ? "Creating account…" : "Create Account"}
         </Button>
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted-foreground">or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <GoogleButton label="Sign up with Google" />
       </form>
+
     </AuthLayout>
   );
 }

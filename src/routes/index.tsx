@@ -3,6 +3,8 @@ import { BarChart3, BookOpen, GraduationCap, ListChecks } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useStudy } from "@/lib/study-store";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,7 +44,9 @@ const features = [
 ];
 
 function Landing() {
+  const { signedIn } = useStudy();
   return (
+
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border bg-background/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
@@ -55,13 +59,22 @@ function Landing() {
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-              <Link to="/signin">Sign In</Link>
-            </Button>
-            <Button size="sm" asChild>
-              <Link to="/signup">Get Started</Link>
-            </Button>
+            {signedIn ? (
+              <Button size="sm" asChild>
+                <Link to="/dashboard">Go to Dashboard</Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
+                  <Link to="/signin">Sign In</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/signup">Get Started</Link>
+                </Button>
+              </>
+            )}
           </div>
+
         </div>
       </header>
 

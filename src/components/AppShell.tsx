@@ -1,4 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
+
 import { BookOpen, GraduationCap, LayoutDashboard, ListChecks, LogOut, Menu, User } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -47,16 +49,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 function SignOutButton({ onDone }: { onDone?: () => void }) {
   const { signOut } = useStudy();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   return (
     <Button
       variant="ghost"
       className="w-full justify-start gap-3 text-sm text-muted-foreground"
-      onClick={() => {
-        signOut();
+      onClick={async () => {
+        await queryClient.cancelQueries();
+        queryClient.clear();
+        await signOut();
         onDone?.();
-        toast.success("Signed out", { description: "This is a temporary frontend action." });
-        navigate({ to: "/" });
+        toast.success("Signed out");
+        navigate({ to: "/signin", replace: true });
       }}
     >
       <LogOut className="h-4 w-4" />
@@ -64,6 +69,7 @@ function SignOutButton({ onDone }: { onDone?: () => void }) {
     </Button>
   );
 }
+
 
 export function AppShell({
   title,
