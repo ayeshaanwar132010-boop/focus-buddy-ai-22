@@ -3,11 +3,12 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { GoogleButton } from "@/components/GoogleButton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AuthLayout, Field } from "@/routes/signup";
-import { useStudy } from "@/lib/study-store";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/signin")({
   head: () => ({
@@ -26,12 +27,12 @@ export const Route = createFileRoute("/signin")({
 
 function SignIn() {
   const navigate = useNavigate();
-  const { signIn } = useStudy();
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<{ email?: string | undefined; password?: string | undefined }>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const next: { email?: string | undefined; password?: string | undefined } = {};
     if (!form.email.trim()) next.email = "Email is required.";
@@ -40,16 +41,23 @@ function SignIn() {
     if (!form.password) next.password = "Password is required.";
     else if (form.password.length < 6) next.password = "Password must be at least 6 characters.";
     setErrors(next);
+    setFormError(null);
     if (Object.keys(next).length > 0) return;
 
     setLoading(true);
-    setTimeout(() => {
-      signIn(form.email.trim());
-      setLoading(false);
-      toast.success("Signed in", { description: "Temporary frontend session — no backend yet." });
-      navigate({ to: "/dashboard" });
-    }, 600);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: form.email.trim(),
+      password: form.password,
+    });
+    setLoading(false);
+    if (error) {
+      setFormError(error.message);
+      return;
+    }
+    toast.success("Signed in");
+    navigate({ to: "/dashboard" });
   };
+
 
   return (
     <AuthLayout
