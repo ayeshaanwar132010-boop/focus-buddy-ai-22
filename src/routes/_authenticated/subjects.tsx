@@ -118,7 +118,7 @@ function Subjects() {
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <CardTitle className="min-w-0 break-words text-base">{subject.name}</CardTitle>
-                  <Badge variant="secondary" className="shrink-0 whitespace-nowrap">{taskCountBySubject(subject.id)} tasks</Badge>
+                  <Badge variant="secondary" className="shrink-0 whitespace-nowrap">{taskCountBySubject(subject.name)} tasks</Badge>
                 </div>
                 <CardDescription>
                   {subject.description || "No description added yet."}
