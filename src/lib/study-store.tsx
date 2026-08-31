@@ -1,16 +1,26 @@
 import type { Session, User } from "@supabase/supabase-js";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
   mockProfile,
   mockSubjects,
-  mockTasks,
   type StudentProfile,
   type StudyTask,
   type Subject,
+  type TaskPriority,
   type TaskStatus,
 } from "./study-data";
+
+export type TaskInput = Omit<StudyTask, "id">;
 
 interface StudyStore {
   profile: StudentProfile;
@@ -20,11 +30,14 @@ interface StudyStore {
   updateSubject: (id: string, s: Omit<Subject, "id">) => void;
   deleteSubject: (id: string) => void;
   tasks: StudyTask[];
-  addTask: (t: Omit<StudyTask, "id">) => void;
-  updateTask: (id: string, t: Omit<StudyTask, "id">) => void;
-  deleteTask: (id: string) => void;
-  setTaskStatus: (id: string, status: TaskStatus) => void;
-  taskCountBySubject: (subjectId: string) => number;
+  tasksLoading: boolean;
+  tasksError: string | null;
+  refreshTasks: () => Promise<void>;
+  addTask: (t: TaskInput) => Promise<void>;
+  updateTask: (id: string, t: TaskInput) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  setTaskStatus: (id: string, status: TaskStatus) => Promise<void>;
+  taskCountBySubject: (subjectName: string) => number;
   user: User | null;
   loadingAuth: boolean;
   signedIn: boolean;
@@ -35,6 +48,39 @@ const StudyContext = createContext<StudyStore | null>(null);
 
 let counter = 100;
 const nextId = (prefix: string) => `${prefix}${++counter}`;
+
+type TaskRow = {
+  id: string;
+  title: string;
+  subject: string | null;
+  description: string | null;
+  status: string;
+  priority: string;
+  due_date: string | null;
+};
+
+function rowToTask(row: TaskRow): StudyTask {
+  return {
+    id: row.id,
+    title: row.title,
+    subject: row.subject ?? "",
+    description: row.description ?? "",
+    status: (row.status as TaskStatus) ?? "todo",
+    priority: (row.priority as TaskPriority) ?? "medium",
+    dueDate: row.due_date ?? "",
+  };
+}
+
+function taskToRow(t: TaskInput) {
+  return {
+    title: t.title,
+    subject: t.subject,
+    description: t.description ?? "",
+    status: t.status,
+    priority: t.priority,
+    due_date: t.dueDate ? t.dueDate : null,
+  };
+}
 
 function profileFromUser(user: User | null): StudentProfile {
   if (!user) return { fullName: "", email: "", program: "" };
@@ -53,7 +99,9 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [subjects, setSubjects] = useState<Subject[]>(mockSubjects);
-  const [tasks, setTasks] = useState<StudyTask[]>(mockTasks);
+  const [tasks, setTasks] = useState<StudyTask[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasksError, setTasksError] = useState<string | null>(null);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
@@ -68,7 +116,33 @@ export function StudyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const user = session?.user ?? null;
+  const userId = user?.id ?? null;
   const profile = useMemo(() => profileFromUser(user), [user]);
+
+  const refreshTasks = useCallback(async () => {
+    if (!userId) {
+      setTasks([]);
+      setTasksLoading(false);
+      return;
+    }
+    setTasksLoading(true);
+    const { data, error } = await supabase
+      .from("study_tasks")
+      .select("id, title, subject, description, status, priority, due_date")
+      .order("created_at", { ascending: false });
+    if (error) {
+      setTasksError(error.message);
+      setTasks([]);
+    } else {
+      setTasksError(null);
+      setTasks((data as TaskRow[]).map(rowToTask));
+    }
+    setTasksLoading(false);
+  }, [userId]);
+
+  useEffect(() => {
+    void refreshTasks();
+  }, [refreshTasks]);
 
   const value = useMemo<StudyStore>(
     () => ({
@@ -87,17 +161,43 @@ export function StudyProvider({ children }: { children: ReactNode }) {
       addSubject: (s) => setSubjects((prev) => [...prev, { ...s, id: nextId("s") }]),
       updateSubject: (id, s) =>
         setSubjects((prev) => prev.map((item) => (item.id === id ? { ...item, ...s } : item))),
-      deleteSubject: (id) => {
-        setSubjects((prev) => prev.filter((item) => item.id !== id));
-        setTasks((prev) => prev.filter((t) => t.subjectId !== id));
-      },
+      deleteSubject: (id) => setSubjects((prev) => prev.filter((item) => item.id !== id)),
       tasks,
-      addTask: (t) => setTasks((prev) => [...prev, { ...t, id: nextId("t") }]),
-      updateTask: (id, t) => setTasks((prev) => prev.map((item) => (item.id === id ? { ...item, ...t } : item))),
-      deleteTask: (id) => setTasks((prev) => prev.filter((item) => item.id !== id)),
-      setTaskStatus: (id, status) =>
-        setTasks((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item))),
-      taskCountBySubject: (subjectId) => tasks.filter((t) => t.subjectId === subjectId).length,
+      tasksLoading,
+      tasksError,
+      refreshTasks,
+      addTask: async (t) => {
+        if (!userId) throw new Error("You need to be signed in to add a task.");
+        const { data, error } = await supabase
+          .from("study_tasks")
+          .insert({ ...taskToRow(t), user_id: userId })
+          .select("id, title, subject, description, status, priority, due_date")
+          .single();
+        if (error) throw error;
+        setTasks((prev) => [rowToTask(data as TaskRow), ...prev]);
+      },
+      updateTask: async (id, t) => {
+        const { data, error } = await supabase
+          .from("study_tasks")
+          .update(taskToRow(t))
+          .eq("id", id)
+          .select("id, title, subject, description, status, priority, due_date")
+          .single();
+        if (error) throw error;
+        const updated = rowToTask(data as TaskRow);
+        setTasks((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      },
+      deleteTask: async (id) => {
+        const { error } = await supabase.from("study_tasks").delete().eq("id", id);
+        if (error) throw error;
+        setTasks((prev) => prev.filter((item) => item.id !== id));
+      },
+      setTaskStatus: async (id, status) => {
+        const { error } = await supabase.from("study_tasks").update({ status }).eq("id", id);
+        if (error) throw error;
+        setTasks((prev) => prev.map((item) => (item.id === id ? { ...item, status } : item)));
+      },
+      taskCountBySubject: (subjectName) => tasks.filter((t) => t.subject === subjectName).length,
       user,
       loadingAuth,
       signedIn: !!user,
@@ -105,7 +205,7 @@ export function StudyProvider({ children }: { children: ReactNode }) {
         await supabase.auth.signOut();
       },
     }),
-    [profile, subjects, tasks, user, loadingAuth],
+    [profile, subjects, tasks, tasksLoading, tasksError, refreshTasks, user, userId, loadingAuth],
   );
 
   return <StudyContext.Provider value={value}>{children}</StudyContext.Provider>;
