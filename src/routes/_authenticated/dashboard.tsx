@@ -52,7 +52,7 @@ function Dashboard() {
   ];
 
   const perSubject = subjects.map((s) => {
-    const subjectTasks = tasks.filter((t) => t.subjectId === s.id);
+    const subjectTasks = tasks.filter((t) => t.subject === s.name);
     const done = subjectTasks.filter((t) => t.status === "completed").length;
     return {
       ...s,
@@ -140,7 +140,7 @@ function Dashboard() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{t.title}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {subjects.find((s) => s.id === t.subjectId)?.name ?? "No subject"} · due{" "}
+                        {t.subject || "No subject"} · due{" "}
                         {formatDate(t.dueDate)}
                       </p>
                     </div>
