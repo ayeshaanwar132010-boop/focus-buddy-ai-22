@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, ListChecks, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, ListChecks, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -43,6 +44,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   formatDate,
   type StudyTask,
@@ -71,7 +73,8 @@ type SortKey = "due-asc" | "due-desc" | "priority" | "title";
 
 const emptyForm = {
   title: "",
-  subjectId: "",
+  subject: "",
+  description: "",
   status: "todo" as TaskStatus,
   priority: "medium" as TaskPriority,
   dueDate: "",
@@ -79,8 +82,24 @@ const emptyForm = {
 
 const priorityRank: Record<TaskPriority, number> = { high: 0, medium: 1, low: 2 };
 
+const showDate = (iso: string) => (iso ? formatDate(iso) : "No due date");
+
+function errorMessage(e: unknown) {
+  return e instanceof Error ? e.message : "Something went wrong. Please try again.";
+}
+
 function TasksPage() {
-  const { tasks, subjects, addTask, updateTask, deleteTask, setTaskStatus } = useStudy();
+  const {
+    tasks,
+    tasksLoading,
+    tasksError,
+    refreshTasks,
+    subjects,
+    addTask,
+    updateTask,
+    deleteTask,
+    setTaskStatus,
+  } = useStudy();
 
   const [query, setQuery] = useState("");
   const [statusTab, setStatusTab] = useState<"all" | TaskStatus>("all");
@@ -91,39 +110,55 @@ function TasksPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StudyTask | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{
     title?: string | undefined;
-    subjectId?: string | undefined;
+    subject?: string | undefined;
     dueDate?: string | undefined;
   }>({});
   const [deleteTarget, setDeleteTarget] = useState<StudyTask | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const subjectName = (id: string) => subjects.find((s) => s.id === id)?.name ?? "Unassigned";
+  const subjectOptions = useMemo(() => {
+    const names = new Set<string>(subjects.map((s) => s.name));
+    tasks.forEach((t) => t.subject && names.add(t.subject));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [subjects, tasks]);
 
   const visible = useMemo(() => {
     const filtered = tasks.filter((t) => {
       if (statusTab !== "all" && t.status !== statusTab) return false;
       if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
-      if (subjectFilter !== "all" && t.subjectId !== subjectFilter) return false;
+      if (subjectFilter !== "all" && t.subject !== subjectFilter) return false;
       if (query.trim()) {
         const q = query.trim().toLowerCase();
-        if (!t.title.toLowerCase().includes(q) && !subjectName(t.subjectId).toLowerCase().includes(q))
+        if (
+          !t.title.toLowerCase().includes(q) &&
+          !t.subject.toLowerCase().includes(q) &&
+          !(t.description ?? "").toLowerCase().includes(q)
+        )
           return false;
       }
       return true;
     });
-    return filtered.sort((a, b) => {
-      if (sort === "due-asc") return a.dueDate.localeCompare(b.dueDate);
-      if (sort === "due-desc") return b.dueDate.localeCompare(a.dueDate);
+    return [...filtered].sort((a, b) => {
+      if (sort === "due-asc") return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
+      if (sort === "due-desc") return (b.dueDate || "").localeCompare(a.dueDate || "");
       if (sort === "title") return a.title.localeCompare(b.title);
       return priorityRank[a.priority] - priorityRank[b.priority];
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, subjects, statusTab, priorityFilter, subjectFilter, query, sort]);
+  }, [tasks, statusTab, priorityFilter, subjectFilter, query, sort]);
+
+  const hasFilters =
+    query.trim() !== "" ||
+    statusTab !== "all" ||
+    priorityFilter !== "all" ||
+    subjectFilter !== "all";
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...emptyForm, subjectId: subjects[0]?.id ?? "" });
+    setForm({ ...emptyForm, subject: subjects[0]?.name ?? "" });
     setErrors({});
     setDialogOpen(true);
   };
@@ -132,7 +167,8 @@ function TasksPage() {
     setEditing(task);
     setForm({
       title: task.title,
-      subjectId: task.subjectId,
+      subject: task.subject,
+      description: task.description ?? "",
       status: task.status,
       priority: task.priority,
       dueDate: task.dueDate,
@@ -141,31 +177,71 @@ function TasksPage() {
     setDialogOpen(true);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+
     const next: typeof errors = {};
     if (!form.title.trim()) next.title = "Task title is required.";
     else if (form.title.trim().length > 120) next.title = "Keep the title under 120 characters.";
-    if (!form.subjectId) next.subjectId = "Choose a subject for this task.";
+    if (!form.subject.trim()) next.subject = "Choose a subject for this task.";
     if (!form.dueDate) next.dueDate = "A due date is required.";
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
     const payload = {
       title: form.title.trim(),
-      subjectId: form.subjectId,
+      subject: form.subject,
+      description: form.description.trim(),
       status: form.status,
       priority: form.priority,
       dueDate: form.dueDate,
     };
-    if (editing) {
-      updateTask(editing.id, payload);
-      toast.success("Task updated");
-    } else {
-      addTask(payload);
-      toast.success("Task added");
+
+    setSaving(true);
+    try {
+      if (editing) {
+        await updateTask(editing.id, payload);
+        toast.success("Task updated");
+      } else {
+        await addTask(payload);
+        toast.success("Task added");
+      }
+      await refreshTasks();
+      setDialogOpen(false);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
     }
-    setDialogOpen(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteTask(deleteTarget.id);
+      toast.success("Task deleted");
+      await refreshTasks();
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const complete = async (task: StudyTask) => {
+    if (busyId) return;
+    setBusyId(task.id);
+    try {
+      await setTaskStatus(task.id, "completed");
+      toast.success("Task completed");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const resetFilters = () => {
@@ -225,9 +301,9 @@ function TasksPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All subjects</SelectItem>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
+                {subjectOptions.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -248,17 +324,41 @@ function TasksPage() {
 
         <Card>
           <CardContent className="p-0">
-            {visible.length === 0 ? (
+            {tasksLoading ? (
+              <div className="space-y-3 p-4 sm:p-6">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-1/3" />
+                  </div>
+                ))}
+              </div>
+            ) : tasksError ? (
+              <div className="p-8 text-center sm:p-12">
+                <AlertTriangle className="mx-auto h-8 w-8 text-destructive" />
+                <p className="mt-3 font-medium">We couldn’t load your tasks</p>
+                <p className="mt-1 break-words text-sm text-muted-foreground">{tasksError}</p>
+                <Button className="mt-5" variant="outline" onClick={() => void refreshTasks()}>
+                  Try again
+                </Button>
+              </div>
+            ) : visible.length === 0 ? (
               <div className="p-8 text-center sm:p-12">
                 <ListChecks className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="mt-3 font-medium">No tasks match your filters</p>
+                <p className="mt-3 font-medium">
+                  {hasFilters ? "No tasks match your filters" : "No study tasks yet"}
+                </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Try clearing the search and filters, or add a new study task.
+                  {hasFilters
+                    ? "Try clearing the search and filters, or add a new study task."
+                    : "Add your first task and it will be saved to your account."}
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  <Button variant="outline" onClick={resetFilters}>
-                    Clear filters
-                  </Button>
+                  {hasFilters ? (
+                    <Button variant="outline" onClick={resetFilters}>
+                      Clear filters
+                    </Button>
+                  ) : null}
                   <Button onClick={openAdd}>
                     <Plus className="mr-1.5 h-4 w-4" /> Add Task
                   </Button>
@@ -272,7 +372,7 @@ function TasksPage() {
                       <div>
                         <p className="break-words text-sm font-medium">{t.title}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
-                          {subjectName(t.subjectId)} · due {formatDate(t.dueDate)}
+                          {t.subject || "Unassigned"} · {showDate(t.dueDate)}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -283,11 +383,8 @@ function TasksPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          disabled={t.status === "completed"}
-                          onClick={() => {
-                            setTaskStatus(t.id, "completed");
-                            toast.success("Task completed");
-                          }}
+                          disabled={t.status === "completed" || busyId === t.id}
+                          onClick={() => void complete(t)}
                         >
                           <Check className="mr-1.5 h-3.5 w-3.5 text-success" /> Complete
                         </Button>
@@ -318,7 +415,7 @@ function TasksPage() {
                       <TableRow key={t.id}>
                         <TableCell className="max-w-[18rem] font-medium">{t.title}</TableCell>
                         <TableCell className="text-muted-foreground">
-                          {subjectName(t.subjectId)}
+                          {t.subject || "Unassigned"}
                         </TableCell>
                         <TableCell>
                           <StatusBadge status={t.status} />
@@ -327,7 +424,7 @@ function TasksPage() {
                           <PriorityBadge priority={t.priority} />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {formatDate(t.dueDate)}
+                          {showDate(t.dueDate)}
                         </TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
@@ -335,11 +432,8 @@ function TasksPage() {
                               variant="ghost"
                               size="icon"
                               aria-label="Mark complete"
-                              disabled={t.status === "completed"}
-                              onClick={() => {
-                                setTaskStatus(t.id, "completed");
-                                toast.success("Task completed");
-                              }}
+                              disabled={t.status === "completed" || busyId === t.id}
+                              onClick={() => void complete(t)}
                             >
                               <Check className="h-4 w-4 text-success" />
                             </Button>
@@ -372,7 +466,7 @@ function TasksPage() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={dialogOpen} onOpenChange={(o) => !saving && setDialogOpen(o)}>
         <DialogContent>
           <form onSubmit={submit}>
             <DialogHeader>
@@ -398,28 +492,38 @@ function TasksPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label className={errors.subjectId ? "text-destructive" : undefined}>Subject</Label>
+                <Label className={errors.subject ? "text-destructive" : undefined}>Subject</Label>
                 <Select
-                  value={form.subjectId}
+                  value={form.subject}
                   onValueChange={(v) => {
-                    setForm((p) => ({ ...p, subjectId: v }));
-                    setErrors((p) => ({ ...p, subjectId: undefined }));
+                    setForm((p) => ({ ...p, subject: v }));
+                    setErrors((p) => ({ ...p, subject: undefined }));
                   }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a subject" />
                   </SelectTrigger>
                   <SelectContent>
-                    {subjects.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
+                    {subjectOptions.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.subjectId ? (
-                  <p className="text-xs font-medium text-destructive">{errors.subjectId}</p>
+                {errors.subject ? (
+                  <p className="text-xs font-medium text-destructive">{errors.subject}</p>
                 ) : null}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Notes (optional)</Label>
+                <Textarea
+                  rows={3}
+                  value={form.description}
+                  placeholder="What exactly needs to be done?"
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -473,35 +577,44 @@ function TasksPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => setDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button type="submit">{editing ? "Save changes" : "Add task"}</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}
+                {editing ? "Save changes" : "Add task"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && !deleting && setDeleteTarget(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this task?</AlertDialogTitle>
             <AlertDialogDescription>
-              “{deleteTarget?.title}” will be removed from this demo session.
+              “{deleteTarget?.title}” will be permanently removed from your account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (deleteTarget) {
-                  deleteTask(deleteTarget.id);
-                  toast.success("Task deleted");
-                }
-                setDeleteTarget(null);
+              disabled={deleting}
+              onClick={(e) => {
+                e.preventDefault();
+                void confirmDelete();
               }}
             >
-              Delete
+              {deleting ? "Deleting…" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
