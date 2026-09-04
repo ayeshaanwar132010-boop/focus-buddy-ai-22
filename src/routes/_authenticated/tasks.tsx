@@ -281,7 +281,7 @@ function TasksPage() {
 
   const resetFilters = () => {
     setQuery("");
-    setStatusTab("all");
+    setStatusFilter("all");
     setPriorityFilter("all");
     setSubjectFilter("all");
     setSort("due-asc");
@@ -299,63 +299,98 @@ function TasksPage() {
       }
     >
       <div className="space-y-5">
-        <Tabs value={statusTab} onValueChange={(v) => setStatusTab(v as typeof statusTab)}>
-          <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="todo">To do</TabsTrigger>
-            <TabsTrigger value="in-progress">In progress</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
         <Card>
-          <CardContent className="grid gap-3 pt-6 md:grid-cols-2 xl:grid-cols-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-9"
-                placeholder="Search tasks or subjects…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+          <CardContent className="space-y-4 pt-6">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <div className="relative sm:col-span-2 xl:col-span-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Search tasks or subjects…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All subjects</SelectItem>
+                  {subjectOptions.map((name) => (
+                    <SelectItem key={name} value={name}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as typeof priorityFilter)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All priorities</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="due-asc">Due date — oldest first</SelectItem>
+                  <SelectItem value="due-desc">Due date — newest first</SelectItem>
+                  <SelectItem value="priority">Priority (high first)</SelectItem>
+                  <SelectItem value="title">Title (A–Z)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as typeof priorityFilter)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All priorities</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Subject" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All subjects</SelectItem>
-                {subjectOptions.map((name) => (
-                  <SelectItem key={name} value={name}>
-                    {name}
-                  </SelectItem>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {visible.length} {visible.length === 1 ? "task" : "tasks"} found
+                </span>
+                {chips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    onClick={chip.clear}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <span className="truncate">{chip.label}</span>
+                    <X className="h-3 w-3 shrink-0" />
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="due-asc">Due date (earliest)</SelectItem>
-                <SelectItem value="due-desc">Due date (latest)</SelectItem>
-                <SelectItem value="priority">Priority (high first)</SelectItem>
-                <SelectItem value="title">Title (A–Z)</SelectItem>
-              </SelectContent>
-            </Select>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="sm:shrink-0"
+                disabled={!hasFilters}
+                onClick={resetFilters}
+              >
+                Reset filters
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
 
         <Card>
           <CardContent className="p-0">
