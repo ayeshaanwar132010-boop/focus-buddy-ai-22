@@ -102,7 +102,7 @@ function TasksPage() {
   } = useStudy();
 
   const [query, setQuery] = useState("");
-  const [statusTab, setStatusTab] = useState<"all" | TaskStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "completed">("all");
   const [priorityFilter, setPriorityFilter] = useState<"all" | TaskPriority>("all");
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("due-asc");
@@ -128,7 +128,8 @@ function TasksPage() {
 
   const visible = useMemo(() => {
     const filtered = tasks.filter((t) => {
-      if (statusTab !== "all" && t.status !== statusTab) return false;
+      if (statusFilter === "completed" && t.status !== "completed") return false;
+      if (statusFilter === "pending" && t.status === "completed") return false;
       if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
       if (subjectFilter !== "all" && t.subject !== subjectFilter) return false;
       if (query.trim()) {
@@ -148,13 +149,47 @@ function TasksPage() {
       if (sort === "title") return a.title.localeCompare(b.title);
       return priorityRank[a.priority] - priorityRank[b.priority];
     });
-  }, [tasks, statusTab, priorityFilter, subjectFilter, query, sort]);
+  }, [tasks, statusFilter, priorityFilter, subjectFilter, query, sort]);
 
   const hasFilters =
     query.trim() !== "" ||
-    statusTab !== "all" ||
+    statusFilter !== "all" ||
     priorityFilter !== "all" ||
-    subjectFilter !== "all";
+    subjectFilter !== "all" ||
+    sort !== "due-asc";
+
+  const chips: { key: string; label: string; clear: () => void }[] = [];
+  if (query.trim())
+    chips.push({ key: "q", label: `Search: “${query.trim()}”`, clear: () => setQuery("") });
+  if (statusFilter !== "all")
+    chips.push({
+      key: "status",
+      label: statusFilter === "pending" ? "Status: Pending" : "Status: Completed",
+      clear: () => setStatusFilter("all"),
+    });
+  if (subjectFilter !== "all")
+    chips.push({
+      key: "subject",
+      label: `Subject: ${subjectFilter}`,
+      clear: () => setSubjectFilter("all"),
+    });
+  if (priorityFilter !== "all")
+    chips.push({
+      key: "priority",
+      label: `Priority: ${priorityFilter}`,
+      clear: () => setPriorityFilter("all"),
+    });
+  if (sort !== "due-asc")
+    chips.push({
+      key: "sort",
+      label:
+        sort === "due-desc"
+          ? "Sort: Due date (newest)"
+          : sort === "title"
+            ? "Sort: Title (A–Z)"
+            : "Sort: Priority",
+      clear: () => setSort("due-asc"),
+    });
 
   const openAdd = () => {
     setEditing(null);
